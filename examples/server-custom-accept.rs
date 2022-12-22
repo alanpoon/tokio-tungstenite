@@ -30,12 +30,12 @@ use hyper::{
         HeaderValue, CONNECTION, SEC_WEBSOCKET_ACCEPT, SEC_WEBSOCKET_KEY, SEC_WEBSOCKET_VERSION,
         UPGRADE,
     },
-    server::conn::AddrStream,
+    
     service::{make_service_fn, service_fn},
     upgrade::Upgraded,
     Body, Method, Request, Response, Server, StatusCode, Version,
 };
-
+use tokio::net::{TcpStream};
 use futures_channel::mpsc::{unbounded, UnboundedSender};
 use futures_util::{future, pin_mut, stream::TryStreamExt, StreamExt};
 
@@ -148,14 +148,14 @@ async fn handle_request(
     Ok(res)
 }
 
-#[tokio::main]
+#[tokio::main(flavor = "current_thread")]
 async fn main() -> Result<(), hyper::Error> {
     let state = PeerMap::new(Mutex::new(HashMap::new()));
 
     let addr = env::args().nth(1).unwrap_or_else(|| "127.0.0.1:8080".to_string()).parse().unwrap();
 
-    let make_svc = make_service_fn(move |conn: &AddrStream| {
-        let remote_addr = conn.remote_addr();
+    let make_svc = make_service_fn(move |conn: &TcpStream| {
+        let remote_addr = conn.peer_addr().unwrap();
         let state = state.clone();
         let service = service_fn(move |req| handle_request(state.clone(), req, remote_addr));
         async { Ok::<_, Infallible>(service) }
